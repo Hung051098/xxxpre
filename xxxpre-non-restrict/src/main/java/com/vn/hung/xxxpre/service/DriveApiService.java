@@ -1,25 +1,32 @@
 package com.vn.hung.xxxpre.service;
 
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
+import com.vn.hung.xxxpre.dto.MovieDetailDto;
 import com.vn.hung.xxxpre.dto.MovieDto;
+import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource; // Import this
-import org.springframework.http.HttpEntity;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 public class DriveApiService {
 
     @Autowired
-    private RestTemplate restTemplate;
+    private Drive driveService;
 
     @Value("${google.api.key}")
     private String apiKey;
@@ -27,56 +34,98 @@ public class DriveApiService {
     @Value("${google.folder.id}")
     private String folderId;
 
-    private static final String DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
+    private static final int PAGE_SIZE = 10;
 
-    // Internal record to match the nested JSON structure from Google Drive API
-    private record GoogleDriveFileResponse(List<MovieDto> files) {}
+    public PaginatedMovieResponse listMovies(String pageToken) {
+        try {
+            // 1. Define the query logic
+            String query = String.format("'%s' in parents and mimeType contains 'video/' and trashed = false", folderId);
 
-    public List<MovieDto> listMovies() {
-        String queryString = String.format("'%s' in parents", folderId);
-        String url = UriComponentsBuilder.fromHttpUrl(DRIVE_FILES_URL)
-                .queryParam("key", apiKey)
-                .queryParam("q", queryString)
-                .queryParam("fields", "files(id, name, thumbnailLink)")
-                .toUriString();
-        GoogleDriveFileResponse response = restTemplate.getForObject(url, GoogleDriveFileResponse.class);
-        return Objects.requireNonNull(response).files();
+            // 2. Fetch the current page of data
+            Drive.Files.List request = driveService.files().list()
+                    .setKey(apiKey)
+                    .setQ(query)
+                    .setFields("nextPageToken, files(id, name, thumbnailLink)")
+                    .setPageSize(PAGE_SIZE); // 10 items per page
+
+            if (pageToken != null && !pageToken.isEmpty()) {
+                request.setPageToken(pageToken);
+            }
+
+            FileList result = request.execute();
+            List<File> files = result.getFiles();
+
+            List<MovieDto> movieDtos;
+            if (files != null) {
+                movieDtos = files.stream()
+                        .map(f -> new MovieDto(f.getId(), f.getName(), f.getThumbnailLink()))
+                        .collect(Collectors.toList());
+            } else {
+                movieDtos = Collections.emptyList();
+            }
+
+            return new PaginatedMovieResponse(movieDtos, result.getNextPageToken());
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to fetch movies from Google Drive", e);
+        }
     }
 
     /**
-     * Streams a movie file from Google Drive.
-     * This method uses restTemplate.exchange() to request the body as a Resource.
-     * Spring (with HttpComponents) will return an InputStreamResource that wraps
-     * the live HTTP stream, which we can then pass directly to the client.
-     *
-     * @param fileId      The Google Drive file ID.
-     * @param rangeHeader The "Range" header from the client's request.
-     * @return A ResponseEntity containing the Resource (the video stream).
+     * Gets detailed metadata for a single video file.
+     * @param fileId The ID of the Google Drive file.
+     * @return A DTO with detailed video information.
      */
-    public ResponseEntity<Resource> streamMovie(String fileId, String rangeHeader) {
-        // Build the Google Drive file download URL
-        String url = UriComponentsBuilder.fromHttpUrl(DRIVE_FILES_URL + "/" + fileId)
-                .queryParam("key", apiKey)
-                .queryParam("alt", "media") // Request the file content
-                .toUriString();
+    public MovieDetailDto getMovieDetail(String fileId) {
+        try {
+            // Request specific fields for the detail view
+            String fields = "id, name, description, thumbnailLink, webViewLink, createdTime, videoMediaMetadata(durationMillis, width, height)";
 
-        // Create HttpHeaders and add the Range header if it exists
-        HttpHeaders headers = new HttpHeaders();
-        if (rangeHeader != null && !rangeHeader.isEmpty()) {
-            headers.set("Range", rangeHeader); // Pass the client's Range header to Google
+            File file = driveService.files().get(fileId)
+                    .setKey(apiKey)
+                    .setFields(fields)
+                    .execute();
+
+            return MovieDetailDto.fromGoogleFile(file);
+
+        } catch (IOException e) {
+            // You might want a more specific exception handling (e.g., 404 Not Found)
+            throw new RuntimeException("Failed to fetch movie detail from Google Drive for fileId: " + fileId, e);
         }
+    }
 
-        // Create an HttpEntity with the headers
-        HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        // Execute the request and get the response as a ResponseEntity<Resource>
-        // This is the key change. We are no longer using ResponseExtractor.
-        // Spring MVC will handle streaming this Resource to the client.
-        return restTemplate.exchange(
-                url,
-                HttpMethod.GET,
-                entity,
-                Resource.class // Ask for the body as a Resource
-        );
+    public ResponseEntity<Resource> streamMovie(String fileId, String rangeHeader) {
+        try {
+            Drive.Files.Get getRequest = driveService.files().get(fileId);
+            getRequest.setKey(apiKey);
+            getRequest.getMediaHttpDownloader().setDirectDownloadEnabled(true);
+
+            if (rangeHeader != null && !rangeHeader.isEmpty()) {
+                getRequest.getRequestHeaders().setRange(rangeHeader);
+            }
+
+            var response = getRequest.executeMedia();
+
+            InputStream inputStream = response.getContent();
+            InputStreamResource resource = new InputStreamResource(inputStream);
+
+            HttpHeaders headers = new HttpHeaders();
+            if (response.getHeaders().getContentType() != null) {
+                headers.setContentType(MediaType.parseMediaType(response.getHeaders().getContentType()));
+            }
+            if (response.getHeaders().getContentLength() != null) {
+                headers.setContentLength(response.getHeaders().getContentLength());
+            }
+            if (response.getHeaders().getContentRange() != null) {
+                headers.set("Content-Range", response.getHeaders().getContentRange());
+                return ResponseEntity.status(206).headers(headers).body(resource);
+            }
+
+            return ResponseEntity.ok().headers(headers).body(resource);
+
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to stream movie from Google Drive", e);
+        }
     }
 }
