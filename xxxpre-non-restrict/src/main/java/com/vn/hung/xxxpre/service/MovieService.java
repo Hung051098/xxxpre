@@ -1,11 +1,13 @@
 package com.vn.hung.xxxpre.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
-import com.google.api.services.drive.model.FileList;
 import com.vn.hung.xxxpre.dto.MovieDetailDto;
-import com.vn.hung.xxxpre.dto.MovieDto;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
+import com.vn.hung.xxxpre.entity.Movie;
+import com.vn.hung.xxxpre.repository.MovieRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
@@ -14,16 +16,20 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Base64;
+import java.util.Map;
 
 @Service
-public class DriveApiService {
+public class MovieService {
+
+    @Autowired
+    private MovieRepository movieRepository;
 
     @Autowired
     private Drive driveService;
@@ -33,46 +39,60 @@ public class DriveApiService {
 
     @Value("${google.folder.id}")
     private String folderId;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private DynamoDbEnhancedClient dynamoDbEnhancedClient;
 
-    private static final int PAGE_SIZE = 10;
-
-    public PaginatedMovieResponse listMovies(String pageToken) {
-        try {
-            // 1. Define the query logic
-            String query = String.format("'%s' in parents and mimeType contains 'video/' and trashed = false", folderId);
-
-            // 2. Fetch the current page of data
-            Drive.Files.List request = driveService.files().list()
-                    .setKey(apiKey)
-                    .setQ(query)
-                    .setFields("nextPageToken, files(id, name, thumbnailLink)")
-                    .setPageSize(PAGE_SIZE); // 10 items per page
-
-            if (pageToken != null && !pageToken.isEmpty()) {
-                request.setPageToken(pageToken);
+    /**
+     * Lists movies with pagination and sorting.
+     */
+    public PaginatedMovieResponse listMovies(String page, int size, String sortDirection) {
+        // 1. Decode pageToken (if present)
+        Map<String, AttributeValue> startKey = null;
+        if (page != null && !page.isEmpty()) {
+            try {
+                startKey = decodePageToken(page);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Invalid page token", e);
             }
-
-            FileList result = request.execute();
-            List<File> files = result.getFiles();
-
-            List<MovieDto> movieDtos;
-            if (files != null) {
-                movieDtos = files.stream()
-                        .map(f -> new MovieDto(f.getId(), f.getName(), f.getThumbnailLink()))
-                        .collect(Collectors.toList());
-            } else {
-                movieDtos = Collections.emptyList();
-            }
-
-            return new PaginatedMovieResponse(movieDtos, result.getNextPageToken());
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to fetch movies from Google Drive", e);
         }
+
+        // 2. Determine Sort Order (ASC or DESC)
+        boolean forward = "ASC".equalsIgnoreCase(sortDirection);
+
+        // 3. Call Repository
+        Page<Movie> moviePage = movieRepository.findAllByReleaseDate(size, startKey, forward);
+
+        // 4. Encode next page token
+        String nextPageToken = null;
+        if (moviePage.lastEvaluatedKey() != null && !moviePage.lastEvaluatedKey().isEmpty()) {
+            try {
+                nextPageToken = encodePageToken(moviePage.lastEvaluatedKey());
+            } catch (IOException e) {
+                // Handle error
+            }
+        }
+
+        return new PaginatedMovieResponse(moviePage.items(), nextPageToken);
     }
+
+    // Helper: Encode Map -> Base64
+    private String encodePageToken(Map<String, AttributeValue> lastKey) throws IOException {
+        String jsonMap = objectMapper.writeValueAsString(lastKey);
+        return Base64.getEncoder().encodeToString(jsonMap.getBytes());
+    }
+
+    // Helper: Decode Base64 -> Map
+    private Map<String, AttributeValue> decodePageToken(String pageToken) throws IOException {
+        byte[] decodedBytes = Base64.getDecoder().decode(pageToken);
+        String jsonMap = new String(decodedBytes);
+        return objectMapper.readValue(jsonMap, new TypeReference<>() {
+        });
+    }
+
 
     /**
      * Gets detailed metadata for a single video file.
+     *
      * @param fileId The ID of the Google Drive file.
      * @return A DTO with detailed video information.
      */

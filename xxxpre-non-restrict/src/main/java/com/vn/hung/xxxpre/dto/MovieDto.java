@@ -1,10 +1,15 @@
 package com.vn.hung.xxxpre.dto;
 
+import com.vn.hung.xxxpre.entity.Movie;
+
 public class MovieDto {
     private String id;
     private String name;
 
     private String thumbnailLink;
+
+    public MovieDto(Movie movie) {
+    }
 
     public String getId() {
         return id;
@@ -34,6 +39,9 @@ public class MovieDto {
         this.id = id;
         this.name = name;
         this.thumbnailLink = thumbnailLink;
+    }
+
+    public MovieDto() {
     }
 
     // Note: The Google API returns a parent object. We need records to map the nesting.

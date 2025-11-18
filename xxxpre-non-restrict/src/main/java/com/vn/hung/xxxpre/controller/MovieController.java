@@ -2,9 +2,11 @@ package com.vn.hung.xxxpre.controller;
 
 import com.vn.hung.xxxpre.dto.MovieDetailDto;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
-import com.vn.hung.xxxpre.service.DriveApiService;
+import com.vn.hung.xxxpre.service.MovieService; // Import new service
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Pageable; // Import Pageable
+import org.springframework.data.web.PageableDefault; // Import for default settings
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,20 +15,22 @@ import org.springframework.web.bind.annotation.*;
 public class MovieController {
 
     @Autowired
-    private DriveApiService driveApiService;
+    private MovieService movieService; // Autowire the new service
 
     /**
-     * Lists movies with pagination.
+     * Lists movies from the database with pagination.
      *
-     * @param pageToken The token for the next page, from the previous response.
-     *                  (e.g., /api/v1/movies?page=...token...)
+     * @param pageable Spring Boot automatically creates this from request params
+     * (e.g., /api/v1/movies?page=0&size=20)
      * @return A PaginatedMovieResponse object.
      */
     @GetMapping
     public ResponseEntity<PaginatedMovieResponse> listMovies(
-            @RequestParam(value = "page", required = false) String pageToken) {
+            @RequestParam(value = "page", required = false) String page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
+            @RequestParam(value = "sort", defaultValue = "DESC") String sort) {
 
-        return ResponseEntity.ok(driveApiService.listMovies(pageToken));
+        return ResponseEntity.ok(movieService.listMovies(page, size, sort));
     }
 
 
@@ -39,7 +43,9 @@ public class MovieController {
     @GetMapping("/{fileId}")
     public ResponseEntity<MovieDetailDto> getMovieDetail(
             @PathVariable String fileId) {
-        return ResponseEntity.ok(driveApiService.getMovieDetail(fileId));
+        // This still uses the DriveApiService as per your original code.
+        // You can update this later to fetch from your 'movie_details' collection.
+        return ResponseEntity.ok(movieService.getMovieDetail(fileId));
     }
 
 
@@ -55,6 +61,6 @@ public class MovieController {
 
         // The service now returns the *exact* response (status, headers, and body)
         // that we want to send to the client. We just return it directly.
-        return driveApiService.streamMovie(fileId, range);
+        return movieService.streamMovie(fileId, range);
     }
 }
