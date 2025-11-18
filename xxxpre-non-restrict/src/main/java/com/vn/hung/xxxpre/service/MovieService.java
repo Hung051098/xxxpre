@@ -23,6 +23,7 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -60,19 +61,19 @@ public class MovieService {
         boolean forward = "ASC".equalsIgnoreCase(sortDirection);
 
         // 3. Call Repository
-        Page<Movie> moviePage = movieRepository.findAllByReleaseDate(size, startKey, forward);
+        List<Movie> moviePage = movieRepository.scan(Movie.class);
 
         // 4. Encode next page token
         String nextPageToken = null;
-        if (moviePage.lastEvaluatedKey() != null && !moviePage.lastEvaluatedKey().isEmpty()) {
-            try {
-                nextPageToken = encodePageToken(moviePage.lastEvaluatedKey());
-            } catch (IOException e) {
-                // Handle error
-            }
-        }
+//        if (moviePage.lastEvaluatedKey() != null && !moviePage.lastEvaluatedKey().isEmpty()) {
+//            try {
+//                nextPageToken = encodePageToken(moviePage.lastEvaluatedKey());
+//            } catch (IOException e) {
+//                // Handle error
+//            }
+//        }
 
-        return new PaginatedMovieResponse(moviePage.items(), nextPageToken);
+        return new PaginatedMovieResponse(moviePage, nextPageToken);
     }
 
     // Helper: Encode Map -> Base64
