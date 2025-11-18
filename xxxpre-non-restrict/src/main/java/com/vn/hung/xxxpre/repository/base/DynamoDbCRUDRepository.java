@@ -47,15 +47,14 @@ public interface DynamoDbCRUDRepository<Entity> {
         table.deleteItem(key);
     }
 
-//    default Entity query(String partitionKey, String sortKey, Class<Entity> entityClass) {
-//        DynamoDbTable<Entity> table = this.table(entityClass);
-//        Key key = Key.builder().partitionValue(partitionKey).build();
-//        if (!CommonUtils.isNullOrEmpty(sortKey)) {
-//            key = Key.builder().partitionValue(partitionKey).sortValue(sortKey).build();
-//        }
-//
-//        return (Entity)table.getItem((r) -> r.key(key));
-//    }
+    default Entity query(String partitionKey, String sortKey, Class<Entity> entityClass) {
+        DynamoDbTable<Entity> table = this.table(entityClass);
+        final Key key = CommonUtils.isNullOrEmpty(sortKey)
+                ? Key.builder().partitionValue(partitionKey).build()
+                : Key.builder().partitionValue(partitionKey).sortValue(sortKey).build();
+
+        return (Entity) table.getItem(r -> r.key(key));
+    }
 
     default List<Entity> queryList(String partitionKey, String sortKey, Class<Entity> entityClass) {
         DynamoDbTable<Entity> table = this.table(entityClass);

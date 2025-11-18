@@ -2,6 +2,7 @@ package com.vn.hung.xxxpre.controller;
 
 import com.vn.hung.xxxpre.dto.MovieDetailDto;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
+import com.vn.hung.xxxpre.entity.Movie;
 import com.vn.hung.xxxpre.service.MovieService; // Import new service
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -41,7 +42,7 @@ public class MovieController {
      * @return A MovieDetailDto with metadata.
      */
     @GetMapping("/{fileId}")
-    public ResponseEntity<MovieDetailDto> getMovieDetail(
+    public ResponseEntity<Movie> getMovieDetail(
             @PathVariable String fileId) {
         // This still uses the DriveApiService as per your original code.
         // You can update this later to fetch from your 'movie_details' collection.

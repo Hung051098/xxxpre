@@ -7,6 +7,7 @@ import com.google.api.services.drive.model.File;
 import com.vn.hung.xxxpre.dto.MovieDetailDto;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
 import com.vn.hung.xxxpre.entity.Movie;
+import com.vn.hung.xxxpre.entity.MovieDetail;
 import com.vn.hung.xxxpre.repository.MovieRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -97,19 +98,18 @@ public class MovieService {
      * @param fileId The ID of the Google Drive file.
      * @return A DTO with detailed video information.
      */
-    public MovieDetailDto getMovieDetail(String fileId) {
+    public Movie getMovieDetail(String fileId) {
         try {
             // Request specific fields for the detail view
-            String fields = "id, name, description, thumbnailLink, webViewLink, createdTime, videoMediaMetadata(durationMillis, width, height)";
+//            String fields = "id, name, description, thumbnailLink, webViewLink, createdTime, videoMediaMetadata(durationMillis, width, height)";
+//
+//            File file = driveService.files().get(fileId)
+//                    .setKey(apiKey)
+//                    .setFields(fields)
+//                    .execute();
+            return movieRepository.query(fileId, null, Movie.class);
 
-            File file = driveService.files().get(fileId)
-                    .setKey(apiKey)
-                    .setFields(fields)
-                    .execute();
-
-            return MovieDetailDto.fromGoogleFile(file);
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             // You might want a more specific exception handling (e.g., 404 Not Found)
             throw new RuntimeException("Failed to fetch movie detail from Google Drive for fileId: " + fileId, e);
         }
