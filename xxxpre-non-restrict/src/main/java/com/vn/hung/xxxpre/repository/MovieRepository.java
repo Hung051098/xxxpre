@@ -10,7 +10,10 @@ import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 @Repository
 public class MovieRepository implements DynamoDbCRUDRepository<Movie> {
@@ -19,25 +22,21 @@ public class MovieRepository implements DynamoDbCRUDRepository<Movie> {
      * Queries movies sorted by release date using the GSI.
      */
     public Page<Movie> findAllByReleaseDate(int pageSize, Map<String, AttributeValue> startKey, boolean forward) {
-        // 1. Get the GSI Index
         DynamoDbIndex<Movie> index = this.tableIndex("movies-by-releaseDate-gsi", Movie.class);
 
-        // 2. Build the query (Partition Key = "Movie")
         QueryConditional queryConditional = QueryConditional.keyEqualTo(Key.builder()
                 .partitionValue("Movie")
                 .build());
 
-        // 3. Build the request with pagination and sort direction
         QueryEnhancedRequest.Builder requestBuilder = QueryEnhancedRequest.builder()
                 .queryConditional(queryConditional)
-                .limit(pageSize);
-//                .scanIndexForward(forward); // true = ASC (oldest), false = DESC (newest)
+                .limit(pageSize)
+                .scanIndexForward(forward);
 
-        if (startKey != null && !startKey.isEmpty()) {
-            requestBuilder.exclusiveStartKey(startKey);
-        }
+        Optional.ofNullable(startKey).ifPresent(requestBuilder::exclusiveStartKey);
 
-        // 4. Execute and get the first page
-        return index.query(requestBuilder.build()).iterator().next();
+        return StreamSupport.stream(index.query(requestBuilder.build()).spliterator(), false)
+                .findFirst()
+                .orElse(null);
     }
 }

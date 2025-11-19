@@ -2,13 +2,21 @@ package com.vn.hung.xxxpre.repository.base;
 
 import com.vn.hung.xxxpre.utils.CommonUtils;
 import software.amazon.awssdk.enhanced.dynamodb.*;
+import software.amazon.awssdk.enhanced.dynamodb.model.Page;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.Select;
 
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public interface DynamoDbCRUDRepository<Entity> {
@@ -25,6 +33,42 @@ public interface DynamoDbCRUDRepository<Entity> {
     default List<Entity> scan(Class<Entity> entityClass) {
         DynamoDbTable<Entity> table = this.table(entityClass);
         return (List) table.scan().items().stream().collect(Collectors.toList());
+    }
+
+    default <T> PageResult<T> scanPage(Class<Entity> clazz, Map<String, AttributeValue> exclusiveStartKey, int limit) {
+
+        DynamoDbTable<Entity> table = this.table(clazz);
+
+        ScanEnhancedRequest.Builder requestBuilder = ScanEnhancedRequest.builder()
+                .limit(limit);
+
+        if (exclusiveStartKey != null && !exclusiveStartKey.isEmpty()) {
+            requestBuilder.exclusiveStartKey(exclusiveStartKey);
+        }
+
+        Iterator<Page<Entity>> iterator = table.scan(requestBuilder.build()).iterator();
+
+        if (iterator.hasNext()) {
+            Page<T> page = (Page<T>) iterator.next();
+            return new PageResult<>(page.items(), page.lastEvaluatedKey());
+        }
+
+        return new PageResult<>(Collections.emptyList(), null);
+    }
+
+    /**
+     * New Method: Counts all items in the table efficiently.
+     */
+    default int count(Class<Entity> entityClass) {
+        String tableName = ((DynamoDbTableName) entityClass.getAnnotation(DynamoDbTableName.class)).value();
+
+        // Use low-level client for Select.COUNT (cheaper than loading items)
+        ScanRequest scanRequest = ScanRequest.builder()
+                .tableName(tableName)
+                .select(Select.COUNT)
+                .build();
+
+        return dynamoDbClient().scan(scanRequest).count();
     }
 
     default void save(Entity entity, Class<Entity> entityClass) {

@@ -2,22 +2,15 @@ package com.vn.hung.xxxpre.entity;
 
 import com.vn.hung.xxxpre.repository.base.DynamoDbTableName;
 import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
-
-import java.util.Date;
 import java.util.List;
 
 @DynamoDbBean
-@DynamoDbTableName("movies") // REQUIRED by your DynamoDbCRUDRepository
+@DynamoDbTableName("movies")
 public class Movie {
 
     private String id;
-
-    // GSI Partition Key: Allows us to query ALL movies together
-    private String movieType;
-
-    // GSI Sort Key: Allows us to sort by date
+    private String movieType = "Movie"; // <--- FIX 1: Initialize default value
     private String releaseDate;
-
     private String driveFileId;
     private String title;
     private String thumbnailLink;
@@ -27,23 +20,35 @@ public class Movie {
     private List<String> displayCategories;
     private List<String> displayActors;
 
-    public Movie() {}
+    public Movie() {
+        this.movieType = "Movie"; // <--- FIX 1: Ensure it's set in no-arg constructor
+    }
 
     public Movie(String driveFileId, String title, String thumbnailLink) {
         this.driveFileId = driveFileId;
         this.title = title;
         this.thumbnailLink = thumbnailLink;
-        this.movieType = "Movie"; // Default value for GSI
+        this.movieType = "Movie";
     }
 
+    // <--- FIX 2: Fix the broken Copy Constructor
     public Movie(Movie movie) {
+        this.id = movie.getId();
+        this.movieType = movie.getMovieType();
+        this.releaseDate = movie.getReleaseDate();
+        this.driveFileId = movie.getDriveFileId();
+        this.title = movie.getTitle();
+        this.thumbnailLink = movie.getThumbnailLink();
+        this.categoryIds = movie.getCategoryIds();
+        this.actorIds = movie.getActorIds();
+        this.displayCategories = movie.getDisplayCategories();
+        this.displayActors = movie.getDisplayActors();
     }
 
     @DynamoDbPartitionKey
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    // --- GSI Configuration ---
     @DynamoDbSecondaryPartitionKey(indexNames = "movies-by-releaseDate-gsi")
     public String getMovieType() { return movieType; }
     public void setMovieType(String movieType) { this.movieType = movieType; }
@@ -51,7 +56,6 @@ public class Movie {
     @DynamoDbSecondarySortKey(indexNames = "movies-by-releaseDate-gsi")
     public String getReleaseDate() { return releaseDate; }
     public void setReleaseDate(String releaseDate) { this.releaseDate = releaseDate; }
-    // -------------------------
 
     public String getDriveFileId() { return driveFileId; }
     public void setDriveFileId(String driveFileId) { this.driveFileId = driveFileId; }

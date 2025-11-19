@@ -3,6 +3,7 @@ package com.vn.hung.xxxpre.controller;
 import com.vn.hung.xxxpre.dto.MovieDetailDto;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
 import com.vn.hung.xxxpre.entity.Movie;
+import com.vn.hung.xxxpre.repository.MovieRepository;
 import com.vn.hung.xxxpre.service.MovieService; // Import new service
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -11,12 +12,16 @@ import org.springframework.data.web.PageableDefault; // Import for default setti
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/movies")
 public class MovieController {
 
     @Autowired
     private MovieService movieService; // Autowire the new service
+    @Autowired
+    private MovieRepository movieRepository; // Autowire the new service
 
     /**
      * Lists movies from the database with pagination.
@@ -27,13 +32,15 @@ public class MovieController {
      */
     @GetMapping
     public ResponseEntity<PaginatedMovieResponse> listMovies(
-            @RequestParam(value = "page", required = false) String page,
+            @RequestParam(value = "page", defaultValue = "1") int page, // Changed to int
             @RequestParam(value = "size", defaultValue = "20") int size,
             @RequestParam(value = "sort", defaultValue = "DESC") String sort) {
 
+        // Validate page number
+        if (page < 1) page = 1;
+
         return ResponseEntity.ok(movieService.listMovies(page, size, sort));
     }
-
 
     /**
      * Gets detailed information for a single movie.
