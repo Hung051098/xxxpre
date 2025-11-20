@@ -1,8 +1,8 @@
 google:
   oauth:
-    client-id: 572563808457-10br9242lgdpcvq1ul73ahnc05a3iv1d.apps.googleusercontent.com
-    client-secret: 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
-    refresh-token: 1//04Tka_25G0nz_CgYIARAAGAQSNwF-L9IrfnPfZUIBWh68VFxZt6RhXJiEPJph_jqWjUQVsm1RHzmvxvjqBWLSMtOZMl3OxHOGzl4
+    client-id: ${GG_CLIENT_ID}
+    client-secret: ${GG_CLIENT_SECRET}
+    refresh-token: ${GG_REFRESH_TOKEN}
   api:
     key: AIzaSyCB2HisghU2vaub9n7onfq39dTPGQuSn04
   folder:
@@ -21,9 +21,9 @@ spring:
   application:
     name: xxxpre
   datasource:
-    url: jdbc:mysql://localhost:3307/movie?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: mysql
-    password: your_password
+    url: ${DB_URL:jdbc:mysql://localhost:3307/movie?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:mysql}
+    password: ${DB_PASSWORD:your_password}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       minimum-idle: 10
@@ -44,5 +44,5 @@ spring:
 # Replace with your actual proxy host (e.g., 10.x.x.x or proxy.company.com)
 http:
   proxy:
-    host: 10.98.0.196
-    port: 8000
+    host: ${PROXY_HOST}
+    port: ${PROXY_PORT}
