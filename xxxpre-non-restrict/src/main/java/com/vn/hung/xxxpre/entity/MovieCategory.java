@@ -1,6 +1,7 @@
 package com.vn.hung.xxxpre.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vn.hung.xxxpre.entity.key.MovieCategoryId;
 import jakarta.persistence.*;
 
@@ -14,7 +15,7 @@ public class MovieCategory {
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("movieId")
     @JoinColumn(name = "movie_id")
-    @JsonBackReference // Child side
+    @JsonIgnore  // <--- ADD THIS to stop recursion
     private Movie movie;
 
     @ManyToOne(fetch = FetchType.LAZY)

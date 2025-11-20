@@ -1,5 +1,6 @@
 package com.vn.hung.xxxpre.controller;
 
+import com.vn.hung.xxxpre.dto.MovieUpsertRequest;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
 import com.vn.hung.xxxpre.entity.Movie;
 import com.vn.hung.xxxpre.service.MovieService;
@@ -7,6 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/movies")
@@ -26,6 +30,15 @@ public class MovieController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping
+    public ResponseEntity<Movie> createMovie(@RequestPart("request") MovieUpsertRequest request,
+                                             @RequestPart(value = "video", required = false) MultipartFile video) {
+        if (video.isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
+        Movie createdMovie = movieService.createMovieWithVideoAsync(request, video);
+        return ResponseEntity.ok(createdMovie);
+    }
     /**
      * Gets detailed information for a single movie.
      *

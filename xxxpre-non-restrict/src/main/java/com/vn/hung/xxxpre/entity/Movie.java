@@ -19,7 +19,10 @@ public class Movie {
     @Column(length = 500)
     private String thumbnailLink;
 
-    // --- REFACTORED RELATIONSHIPS ---
+    @OneToOne(mappedBy = "movie", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = false)
+    @PrimaryKeyJoinColumn // Indicates that the MovieDetail shares the same PK as Movie
+    @JsonManagedReference // Parent side of the relationship
+    private MovieDetail movieDetail;
 
     // Changed from List<Category> to List<MovieCategory>
     @OneToMany(mappedBy = "movie", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -32,16 +35,25 @@ public class Movie {
     private List<MovieActor> movieActors = new ArrayList<>();
 
     // --------------------------------
-
     public Movie() {}
 
-    // Helper to add category easily
+    // Helper to set Detail
+    public void setMovieDetail(MovieDetail movieDetail) {
+        if (movieDetail == null) {
+            if (this.movieDetail != null) {
+                this.movieDetail.setMovie(null);
+            }
+        } else {
+            movieDetail.setMovie(this);
+        }
+        this.movieDetail = movieDetail;
+    }
+
     public void addCategory(Category category) {
         MovieCategory movieCategory = new MovieCategory(this, category);
         this.movieCategories.add(movieCategory);
     }
 
-    // Helper to add actor easily
     public void addActor(Actor actor) {
         MovieActor movieActor = new MovieActor(this, actor);
         this.movieActors.add(movieActor);
@@ -63,9 +75,12 @@ public class Movie {
     public String getDriveFileId() { return driveFileId; }
     public void setDriveFileId(String driveFileId) { this.driveFileId = driveFileId; }
 
+    public MovieDetail getMovieDetail() { return movieDetail; }
+
     public List<MovieCategory> getMovieCategories() { return movieCategories; }
     public void setMovieCategories(List<MovieCategory> movieCategories) { this.movieCategories = movieCategories; }
 
     public List<MovieActor> getMovieActors() { return movieActors; }
     public void setMovieActors(List<MovieActor> movieActors) { this.movieActors = movieActors; }
+
 }

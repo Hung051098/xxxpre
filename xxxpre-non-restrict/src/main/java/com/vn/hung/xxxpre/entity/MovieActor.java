@@ -1,6 +1,7 @@
 package com.vn.hung.xxxpre.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.vn.hung.xxxpre.entity.key.MovieActorId;
 import jakarta.persistence.*;
 
@@ -17,6 +18,7 @@ public class MovieActor {
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("movieId") // Matches the field name in MovieActorId
     @JoinColumn(name = "movie_id")
+    @JsonIgnore  // <--- ADD THIS to stop recursion
     private Movie movie;
     // --- FIX END ---
 
