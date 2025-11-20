@@ -1,20 +1,21 @@
 package com.vn.hung.xxxpre.entity;
 
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
-@DynamoDbBean
+@Entity
+@Table(name = "categories")
 public class Category {
 
+    @Id
     private String id;
 
     private String name;
-
     private String slug;
-
     private String description;
 
-    // Constructors
+
     public Category() {
     }
 
@@ -24,7 +25,6 @@ public class Category {
         this.description = description;
     }
 
-    @DynamoDbPartitionKey
     public String getId() {
         return id;
     }

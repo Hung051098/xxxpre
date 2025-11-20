@@ -1,4 +1,4 @@
-package com.vn.hung.xxxpre.repository;
+package com.vn.hung.xxxpre.model;
 
 public class ApplicationIntegrationProperties {
 

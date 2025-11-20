@@ -1,33 +1,26 @@
 package com.vn.hung.xxxpre.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.File;
-import com.vn.hung.xxxpre.dto.MovieDetailDto;
 import com.vn.hung.xxxpre.dto.PaginatedMovieResponse;
 import com.vn.hung.xxxpre.entity.Movie;
-import com.vn.hung.xxxpre.entity.MovieDetail;
 import com.vn.hung.xxxpre.repository.MovieRepository;
-import com.vn.hung.xxxpre.repository.base.PageResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
-import software.amazon.awssdk.enhanced.dynamodb.model.Page;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Base64;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class MovieService {
@@ -44,50 +37,48 @@ public class MovieService {
     @Value("${google.folder.id}")
     private String folderId;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private DynamoDbEnhancedClient dynamoDbEnhancedClient;
 
     /**
-     * Lists movies with pagination and sorting.
+     * Lists movies with pagination, sorting by releaseDate, and keyword search.
+     *
+     * @param page          Current page number (1-based from controller)
+     * @param size          Page size
+     * @param sortDirection "ASC" or "DESC"
+     * @param keyword       Search term for Title, Category, or Actor
      */
-    public PaginatedMovieResponse listMovies(int page, int size, String sortDirection) {
-        Map<String, AttributeValue> startKey = null;
+    public PaginatedMovieResponse listMovies(int page, int size, String sortDirection, String keyword) {
+        // 1. Validate Page
+        if (page < 1) page = 1;
 
-        // 1. Get Totals (New Logic)
-        int totalResults = movieRepository.count(Movie.class);
-        int totalPages = (int) Math.ceil((double) totalResults / size);
+        // 2. Create Sort (Default to DESC if invalid)
+        Sort.Direction direction = Sort.Direction.DESC;
+        if (sortDirection != null && sortDirection.equalsIgnoreCase("ASC")) {
+            direction = Sort.Direction.ASC;
+        }
+        Sort sort = Sort.by(direction, "releaseDate");
 
-        // 2. Skip pages to find the correct startKey
-        for (int i = 1; i < page; i++) {
-            PageResult<Movie> result = movieRepository.scanPage(Movie.class, startKey, size);
-            startKey = result.getLastEvaluatedKey();
+        // 3. Create Pageable (Spring Data JPA uses 0-based indexing)
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
 
-            // If startKey is null, we've exceeded the available pages
-            if (startKey == null) {
-                return new PaginatedMovieResponse(Collections.emptyList(), page, totalResults, totalPages);
-            }
+        // 4. Execute Query
+        Page<Movie> moviePage = movieRepository.searchByKeyword(keyword, pageable);
+
+        // 5. Build Response
+        if (moviePage.isEmpty()) {
+            return new PaginatedMovieResponse(Collections.emptyList(), page, 0, 0);
         }
 
-        // 3. Fetch data
-        PageResult<Movie> moviePage = movieRepository.scanPage(Movie.class, startKey, size);
-        List<Movie> movies = moviePage.getItems();
-
-        // 4. Return full response
-        return new PaginatedMovieResponse(movies, page, totalResults, totalPages);
+        return new PaginatedMovieResponse(
+                moviePage.getContent(),
+                page,
+                moviePage.getTotalElements(),
+                moviePage.getTotalPages()
+        );
     }
 
-    /**
-     * Gets detailed metadata for a single video file.
-     *
-     * @param fileId The ID of the Google Drive file.
-     * @return A DTO with detailed video information.
-     */
     public Movie getMovieDetail(String fileId) {
-        try {
-            return movieRepository.query(fileId, null, Movie.class);
-        } catch (Exception e) {
-            // You might want a more specific exception handling (e.g., 404 Not Found)
-            throw new RuntimeException("Failed to fetch movie detail from Google Drive for fileId: " + fileId, e);
-        }
+        return movieRepository.findById(fileId)
+                .orElseThrow(() -> new RuntimeException("Movie not found with ID: " + fileId));
     }
 
 

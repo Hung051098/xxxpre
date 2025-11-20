@@ -1,13 +1,16 @@
 package com.vn.hung.xxxpre.entity;
 
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbBean;
-import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbPartitionKey;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 import java.util.Date;
 
-@DynamoDbBean
+@Entity
+@Table(name = "actors")
 public class Actor {
 
+    @Id
     private String id;
 
     private String name;
@@ -15,7 +18,8 @@ public class Actor {
     private String bio;
     private Date birthDate;
 
-    // Constructors
+    // -------------------------------
+
     public Actor() {
     }
 
@@ -24,7 +28,6 @@ public class Actor {
         this.avatarLink = avatarLink;
     }
 
-    @DynamoDbPartitionKey
     public String getId() {
         return id;
     }
