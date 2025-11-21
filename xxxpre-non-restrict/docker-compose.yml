@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  mysql-db:
+    image: mysql:8.0
+    container_name: movie_mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: your_password
+      MYSQL_DATABASE: movie
+    volumes:
+      - mysql_data_volume:/var/lib/mysql
+
+    # 1. Định nghĩa kiểm tra sức khỏe
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      timeout: 10s
+      retries: 5
+      interval: 10s
+
+  xxxpre-app:
+    build: .
+    container_name: xxxpre-app
+    ports:
+      - "8080:8080"
+    environment:
+      # Tên service 'mysql-db' là hostname nội bộ
+      DB_URL: 'jdbc:mysql://mysql-db:3306/movie?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true'
+      DB_USERNAME: root
+      DB_PASSWORD: your_password
+      # Thêm các biến môi trường Google OAuth và Proxy
+      GG_CLIENT_ID: '572563808457-10br9242lgdpcvq1ul73ahnc05a3iv1d.apps.googleusercontent.com'
+      GG_CLIENT_SECRET: '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'
+      GG_REFRESH_TOKEN: '1//04Tka_25G0nz_CgYIARAAGAQSNwF-L9IrfnPfZUIBWh68VFxZt6RhXJiEPJph_jqWjUQVsm1RHzmvxvjqBWLSMtOZMl3OxHOGzl4'
+      PROXY_HOST: '10.98.0.196'
+      PROXY_PORT: '8000'
+
+    # 2. Buộc ứng dụng chờ MySQL khỏe mạnh trước khi chạy
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+
+volumes:
+  mysql_data_volume:

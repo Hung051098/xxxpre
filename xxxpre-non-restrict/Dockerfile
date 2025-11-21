@@ -15,6 +15,15 @@ ENV HTTP_PROXY=$HTTP_PROXY
 ENV HTTPS_PROXY=$HTTPS_PROXY
 ENV NO_PROXY=$NO_PROXY
 
+ENV DB_URL=jdbc:mysql://host.docker.internal:3306/movie?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true&autoReconnect=true&failOverReadOnly=false
+ENV DB_USERNAME=root
+ENV DB_PASSWORD=your_password
+ENV GG_CLIENT_ID=572563808457-10br9242lgdpcvq1ul73ahnc05a3iv1d.apps.googleusercontent.com
+ENV GG_CLIENT_SECRET=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
+ENV GG_REFRESH_TOKEN=1//04Tka_25G0nz_CgYIARAAGAQSNwF-L9IrfnPfZUIBWh68VFxZt6RhXJiEPJph_jqWjUQVsm1RHzmvxvjqBWLSMtOZMl3OxHOGzl4
+ENV PROXY_HOST=10.98.0.196
+ENV PROXY_PORT=8000
+
 # 3. Tạo file settings.xml cho Maven để định tuyến kết nối qua Proxy
 # Chúng ta sẽ sử dụng tham số -Dmaven.repo.local để buộc Maven dùng settings.xml tùy chỉnh
 # Sử dụng 'if' để tránh tạo cấu hình proxy nếu không có proxy nào được truyền vào
@@ -25,11 +34,11 @@ RUN if [ -n "$PROXY_HOST" ]; then \
 # 4. Chạy lệnh mvn, sử dụng settings.xml tùy chỉnh nếu nó tồn tại
 # Thay thế -DskipTests package bằng lệnh cần thiết của bạn
 COPY pom.xml .
-RUN if [ -f "/usr/share/maven/ref/settings-docker.xml" ]; then \
-    mvn -B -DskipTests dependency:go-offline -s /usr/share/maven/ref/settings-docker.xml; \
-  else \
-    mvn -B -DskipTests dependency:go-offline; \
-  fi
+# RUN if [ -f "/usr/share/maven/ref/settings-docker.xml" ]; then \
+#     mvn -B -DskipTests dependency:go-offline -s /usr/share/maven/ref/settings-docker.xml; \
+#   else \
+#     mvn -B -DskipTests dependency:go-offline; \
+#   fi
 
 COPY src ./src
 RUN if [ -f "/usr/share/maven/ref/settings-docker.xml" ]; then \
